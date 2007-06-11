@@ -1,5 +1,4 @@
-#include "FWCore/PluginManager/interface/ModuleDef.h"
-
+#include "PluginManager/ModuleDef.h"
 #include "FWCore/Framework/interface/InputSourceMacros.h"
 #include "FWCore/Framework/interface/MakerMacros.h"
 #include "GeneratorInterface/BeamHaloGenerator/interface/BeamHaloSource.h"
