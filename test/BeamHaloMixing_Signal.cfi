@@ -1,0 +1,148 @@
+  # this example configuration offers some minimum
+  # annotation, to help users get through; please
+  # don't hesitate to read through the comments
+
+
+  # use MessageLogger to redirect/suppress multiple
+  # service messages coming from the system
+  #
+  # in this config below, we use the replace option to make
+  # the logger let out messages of severity ERROR (INFO level
+  # will be suppressed), and we want to limit the number to 10
+  #
+  include "FWCore/MessageService/data/MessageLogger.cfi"
+
+  # in you wish to quiet the logger even more and leave in
+  # only info from the Framework, use config example below :
+  #
+/*
+  service = MessageLogger
+  {
+     untracked vstring destinations = {"cout"}
+     untracked vstring categories = { "Debug" }
+     untracked PSet cout =
+     {
+        untracked PSet default = { untracked int32 limit = -1 }  # kill all messages in the log
+        untracked PSet Debug  = { untracked int32 limit = -1 } # but FwkJob category - those unlimitted
+     }
+  }
+
+   service = MessageLogger {
+        untracked vstring debugModules = {   "mix"   }
+        untracked vstring categories    =    { "MixingModule"}
+        untracked vstring categories    =    { "CaloHitResponse"}
+
+        untracked vstring destinations =  {    "cout"  }
+        untracked PSet cout   =  {
+                untracked string threshold = "DEBUG"
+                untracked PSet DEBUG ={untracked int32 limit = 10}
+                untracked PSet MixingModule ={untracked int32 limit = 1000000000000}
+               untracked PSet  CaloHitResponse ={untracked int32 limit = 1000000000000}
+
+        }
+     }
+*/
+service = RandomNumberGeneratorService
+{
+   untracked uint32 sourceSeed = 123456789
+   PSet moduleSeeds =
+   {
+       untracked uint32 VtxSmeared = 98765432
+       untracked uint32 g4SimHits  = 11
+       untracked uint32 mix        = 12345
+
+       untracked uint32 siPixelDigis =1234567
+       untracked uint32 siStripDigis =1234567
+
+       untracked uint32 ecalUnsuppressedDigis = 1234567
+
+       untracked uint32 hcalDigis  = 11223344
+
+       untracked uint32 muonCSCDigis  = 11223344
+       untracked uint32 muonDTDigis = 1234567
+       untracked uint32 muonRPCDigis = 1234567
+   }
+}
+
+
+  # an example of "source", read a pre-generated event sample
+  #
+  source = PoolSource {
+       untracked vstring fileNames = {'file:/Samples/beamgas_GEN_SIM_1000.root'}
+       untracked string catalog = 'PoolFileCatalog.xml'
+   }
+
+
+
+include "Configuration/StandardSequences/data/Reconstruction.cff"
+
+# this config frament brings you 3 steps of the detector simulation:
+# -- vertex smearing (IR modeling)
+# -- G4-based hit level detector simulation
+# -- digitization (electronics readout modeling)
+# it returns 2 sequences :
+# -- psim (vtx smearing + G4 sim)
+# -- pdigi (digitization in all subsystems, i.e. tracker=pix+sistrips,
+#           cal=ecal+ecal-0-suppression+hcal), muon=csc+dt+rpc)
+#
+include "Configuration/StandardSequences/data/Simulation.cff"
+
+# please note the IMPORTANT:
+# in order to operate Digis, one needs to include Mixing module
+# (pileup modeling), at least in the 0-pileup mode
+#
+# There're 3 possible configurations of the Mixing module :
+# no-pileup, low luminosity pileup, and high luminosity pileup
+#
+# they come, respectively, through the 3 config fragments below
+#
+# *each* config returns label "mix"; thus you canNOT have them
+# all together in the same configuration, but only one !!!
+#
+
+# Vertex smearing
+#
+# There're 3 types of Vertex smearing module (Gauss, Flat, BeamProfile);
+# the cff's are available for each one :
+# Configuration/StandardSequences/data/VtxSmearedGauss.cff
+# Configuration/StandardSequences/data/VtxSmearedNoSmear.cff
+# Configuration/StandardSequences/data/VtxSmearedFlat.cff
+# Configuration/StandardSequences/data/VtxSmearedBeamPreofile.cff
+# Currently, we suggest using Gaussian vertex smearing
+
+include "Configuration/StandardSequences/data/VtxSmearedGauss.cff"
+#include "Configuration/StandardSequences/data/VtxSmearedNoSmear.cff"
+#include "Configuration/StandardSequences/data/VtxSmearedFlat.cff"
+#include "Configuration/StandardSequences/data/VtxSmearedBeamProfile.cff"
+
+#
+# explicitly choose a set of calibrations
+#
+include "Configuration/StandardSequences/data/FakeConditions.cff"
+
+
+
+#
+# You can set Mag Field to 0
+#
+#include "Configuration/StandardSequences/data/UseZeroBField.cff"
+
+   path p2 = {pdigi} # digitization
+   path p3 = {reconstruction} # reconstruction
+
+  # Event output
+include "Configuration/EventContent/data/EventContent.cff"
+  module FEVT = PoolOutputModule
+  {
+#       using FEVTSIMEventContent
+       untracked string fileName = "/tmp/BeamHalo_MM_muonBX-2.root"
+untracked vstring outputCommands = {
+"drop *_*_*_*",
+"keep *_*_*_ANALYSIS"
+}
+  }
+
+  endpath outpath = {FEVT}
+
+  schedule = {p2,p3,outpath}
+
